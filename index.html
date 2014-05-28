@@ -1,0 +1,129 @@
+<html>
+  <head>
+    <title>GrinChat</title>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/react/0.10.0/react.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/react/0.10.0/JSXTransformer.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js'></script>
+    <script src='https://cdn.firebase.com/js/client/1.0.15/firebase.js'></script>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.4.2/pure-min.css">
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      #content {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .content-list {
+        margin-bottom: 20px;
+      }
+      h1.title {
+        font-size: 3em;
+      }
+      .comment {
+        margin-bottom: 20px;
+      }
+      .comment:nth-child(even) { 
+        /*background: #FFDC00;*/
+      }
+      .comment .author {
+        color: #85144B;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="content" class="pure-g"></div>
+    <script type="text/jsx">
+      /** @jsx React.DOM */
+      // The above declaration must remain intact at the top of the script.
+      
+      var myDataRef = new Firebase('https://incandescent-fire-7695.firebaseio.com/comments');
+      
+      var CommentBox = React.createClass({
+        handleCommentSubmit: function(comment) {
+          myDataRef.push(comment);
+        },
+        getInitialState: function() {
+          return {data: {}};
+        },
+        componentWillMount: function() {
+          myDataRef.on('child_added', function(snapshot) {
+            var newData = {};
+            newData[snapshot.name()] = snapshot.val();
+            this.setState({data: _.extend(this.state.data, newData)});
+          }, this);
+          myDataRef.on('child_removed', function(snapshot) {
+            this.setState({data: _.omit(this.state.data, snapshot.name())});
+          }, this);
+        },
+        render: function() {
+          return (
+            <div className="commentBox pure-u-1">
+              <h1 className="title">GrinChat</h1>
+              <CommentList data={this.state.data} />
+              <CommentForm 
+                onCommentSubmit={this.handleCommentSubmit}
+              />
+            </div>
+          );
+        }
+      });
+      
+      var CommentList = React.createClass({
+        render: function() {
+          var commentNodes = _.map(this.props.data, function (comment) {
+            return <Comment author={comment.author}>{comment.text}</Comment>;
+          });
+          return (
+            <div className="content-list">
+              <h2>Messages</h2>
+              {commentNodes}
+            </div>
+          );
+        }
+      });
+      
+      var CommentForm = React.createClass({
+        handleSubmit: function() {
+          var author = this.refs.author.getDOMNode().value.trim();
+          var text = this.refs.text.getDOMNode().value.trim();
+          if (!text || !author) {
+            return false;
+          }
+          this.props.onCommentSubmit({author: author, text: text});
+          this.refs.text.getDOMNode().value = '';
+          return false;
+        },
+        render: function() {
+          return (
+            <form className="pure-form pure-form-stacked" onSubmit={this.handleSubmit}>
+              <fieldset>
+                <h2>New Message</h2>
+                <input type="text" placeholder="Your name" ref="author"/>
+                <input type="text" placeholder="Say something..." ref="text"/>
+                <input type="submit" value="Post" className="pure-button pure-button-primary"/>
+              </fieldset>
+            </form>
+          );
+        }
+      });
+      
+      var Comment = React.createClass({
+        render: function() {
+          return (
+            <div className="comment">
+              <div className="author">{this.props.author}</div>
+              <div className="body">{this.props.children}</div>
+            </div>
+          );
+        }
+      });
+      
+      React.renderComponent(
+        <CommentBox />,
+        document.getElementById('content')
+      );
+    </script>
+  </body>
+</html>
